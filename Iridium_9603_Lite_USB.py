@@ -1,5 +1,7 @@
 # Iridium 9603 Lite USB
 
+# Tested with Python 2.7 on Windows 10 64-Bit
+
 # 9603 power is provided by LTC3225 supercapacitor charger (charged from USB port)
 # 9603 module is interfaced via a Cypress CY7C65213:
 # GPIO_0 is Tx/Rx LED
@@ -13,13 +15,15 @@ import serial
 import time
 from cy7c65213 import CyUSBSerial, CyGPIO
 
-serport = 'COM6' # define serial port
+# Define serial port
+# Check Device Manager for the correct port name (on Windows)
+serport = 'COM1'
 
 class IridiumUSBport(object):
     
     def __init__(self):
         print 'Opening GPIO...'
-        # Load DLL provided by Cypress
+        # Load DLL provided by Cypress (Windows notation)
         self.dll = "C:\\Program Files (x86)\\Cypress\\USB-Serial SDK\\library\\cyusbserial\\x64\\cyusbserial.dll"
         self.lib = CyUSBSerial(lib = self.dll)
         #self.dev = self.lib.find().next() # Use first device found
@@ -31,7 +35,7 @@ class IridiumUSBport(object):
         self.NET_pin = self.gpio.pin(3) # 9603 Network Available = GPIO_3
         self.SHDN_pin = self.gpio.pin(4) # LTC3225 Shutdown = GPIO_4
         
-        print 'Opening port...'
+        print 'Opening serial port...'
         self.ser = serial.Serial(serport,19200,timeout=1)
 
         self.CSQ = int(0)
@@ -171,8 +175,8 @@ try:
     ip.set_SHDN(1)
 
     # Set RTS and DTR low
-    ip.set_RTS(1)
-    ip.set_DTR(1)
+    ip.set_RTS(1) # 1 = Low
+    ip.set_DTR(1) # 1 = Low
 
     # Keep reading PGOOD (GPIO_2) until it goes high
     pgood = ip.get_PGOOD()
@@ -218,7 +222,13 @@ try:
 
     # If CSQ == 5, queue a message, initiate SBD session
     if ip.CSQ == 5:
-        ip.queueMessage('This is a test message!')
+
+        # Add a new Mobile Originated message to the queue
+        # Comment the next two lines out if you don't want to send a message
+        #  and only want to check for new Mobile Terminated messages
+        message = 'This is a test message!'
+        ip.queueMessage(message)
+        
         ip.initiateSBD()
         if ip.MOS == 0: print 'No message to send...'
         if ip.MOS == 1: print 'MESSAGE SENT!'
@@ -230,7 +240,7 @@ try:
             msg = ip.readSBD()
             print msg
             try:
-                fp = open('Iridium_Rx_Log.txt','ab')
+                fp = open('Iridium_Rx_Log.txt','ab') # Append message to Iridium_Rx_Log.txt
                 fp.write(msg+'\r\n')
                 fp.close()
             except:
